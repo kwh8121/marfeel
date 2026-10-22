@@ -8,7 +8,8 @@
 ## 1. 요약
 
 - 로그인(`POST /api/user/signin`)과 조회(`POST /api/dashboard/query`)가 모두 HTTP 200으로 성공했다.
-- 호출 한도는 계정당 분당 1회, 응답당 최대 500행이다. 모든 탐색은 호출 사이에 65초를 두고 수행했다.
+- 호출 한도는 계정당 분당 1회, 응답당 최대 500행이다. 모든 탐색은 호출 사이에 65초를 두고 수행했다. 60초 안의 두 번째 호출은 실측에서 HTTP 429였다(8절).
+- 기사별 실시간 조회(1·5분 단위)와 국내·해외 분리가 가능하다. 경쟁사(koreaherald.com) 데이터는 이 API로 조회되지 않는다(8절).
 - 이 계정에서 값이 있는 지표는 확인된 범위로 `uniqueUsers`, `pageViewsTotal`, `newArticles`, `discoverClicks`, `discoverImpressions`, `searchPosition`, `adsPerPage`, `socialPosts`에 6절에서 확인한 `totalDuration`, `averageRFV`, `adsImpressions`, `searchImpressions`, `searchClicks` 5개, 그리고 앱 카탈로그에서 확인한 15개를 더한 28개다. 수익 계열(`revenueTotal`, `CPM`, `RPM`, `ARPU`, `revenueTotalPerArticle`)과 모니터링 계열은 이름은 유효하지만 값이 0이다.
 - `uniqueSessions`, `pageViewsPerSession`, `sessionsPerUser`, `uniqueRegisteredUsers`는 `rawData` 권한이 없어 조회할 수 없다(4절).
 - Engagement·광고·미디어 계열의 나머지 후보는 권한 문제가 아니라 시도한 이름이 틀려 무시된 것으로 보이며, 실제 API 이름은 Explore에서 확인해야 한다.
@@ -120,7 +121,8 @@
 
 ### 필터
 
-- 개발 가이드가 `source`, `section`, `mediumInternal`, `userType`, `publishDate` 필터를 사용한다고 안내한다. 이번에 필터 값은 실측하지 않았다.
+- 개발 가이드가 `source`, `section`, `mediumInternal`, `userType`, `publishDate` 필터를 사용한다고 안내한다.
+- `country`, `source` 필터는 8절에서 실측했다. 필터 값은 응답 `items`의 `value`가 아니라 `id`를 쓴다(`country`는 GeoNames ID).
 
 ## 6. Marfeel Explore에서 확인한 화면 이름과 API 필드 (2026-10-22, 사용자 제공)
 
@@ -237,3 +239,81 @@ Explore 화면에서 쿼리를 만들고 "Get JSON API"로 복사한 본문 기�
 | Editorial | – | 저자, 섹션, 토픽, 발행일, 콘텐츠 유형 |
 
 출처: [Metrics and dimensions glossary](https://www.marfeel.com/docs/analytics/metrics-dimensions/metrics-dimensions-glossary), [Reporting API developer guide](https://www.marfeel.com/docs/analytics/api-docs/marfeel-reporting-api-developer-guide). 사전 페이지에는 API 필드명이 없으며, 범주별 상세 문서에 개별 정의가 있다.
+
+## 8. 실시간 기사별 조회·국가 분리·호출 한도·경쟁사 (2026-10-22 실측)
+
+해외 통신 기사 선별 파이프라인의 [VERIFY] 항목을 확인하려고 실측했다. 2026-10-22 10:59~11:17(KST)에 18회 호출했다. 17회는 65초 간격을 두었고, 1회는 한도 확인용으로 간격 없이 보냈다. 원본 응답은 `data/probes/out/`에 있으며 저장소에는 포함하지 않는다.
+
+### 판정
+
+| [VERIFY] 항목 | 판정 | 근거 |
+| --- | --- | --- |
+| 기사별 실시간 조회수 | **가능** | `granularity: realtime` + `groupBy: ["url"]`로 PV·UV를 기사별로 받는다 |
+| 5분 주기 | **가능** | 5분·1분 단위를 모두 제공한다. 1분 단위로 보면 지연은 약 1분이다 |
+| 국가별 분리 | **가능 (필터 방식)** | `country` 필터의 `eq`/`neq`에 GeoNames ID를 넣는다. 한국은 `1835841` |
+| 호출 한도 | **분당 1회 (실측 확인)** | 60초 안의 두 번째 호출은 HTTP 429였다. 한도 헤더는 없다 |
+| 유입 경로별 데이터 | **가능** | `source`는 실시간에서도 그룹화와 필터로 모두 동작한다 |
+| 경쟁사 모니터링 | **API로 불가, 담당자 확인 필요** | 아래 "경쟁사 모니터링" 참고 |
+
+### 실시간 조회
+
+- 요청은 `"dates": {"last": {"number": 30, "dimension": "minute"}}`, `"granularity": "realtime"`으로 보낸다. 응답의 `granularity`는 `minutely_5`(기본)이고, `availableGranularities`는 `["minutely_1", "minutely_5"]`다.
+- 30분을 요청하면 5분 구간 6개가 온다. `actualData.data[*].label`은 구간 시작 시각(KST, 예: `2026-10-22 10:55`)이다. 마지막 구간은 진행 중인 구간이다. 11:12:41 호출의 마지막 구간은 `11:10`이었다.
+- 지연: 11:00:29에 `minutely_1`로 10분을 요청하니 마지막 구간이 `10:59`였다. 집계 지연은 약 1분 이내다.
+- 갱신: 11:06:02에 같은 요청을 다시 보내니 구간 범위가 10:30~10:55에서 10:40~11:05로 밀렸다. 30분을 요청했는데 이때는 `10:40`부터 6개 구간이 왔다. 구간 경계는 정각 기준 5분 단위로 맞춰진다.
+- 조회 가능한 기간:
+  - 180분 요청은 `minutely_5`로 36개 구간(08:20~11:15)이 왔다. 이때 `availableGranularities`는 `["minutely_5", "hourly"]`다. 이 길이에서는 `minutely_1`이 빠진다.
+  - `last 3 day`에 `minutely_5`를 요청하면 `hourly`로 바뀌어 응답한다. 이때 기간은 10-19 00:00~10-21 23:00이고 **오늘이 빠진다**. 오늘 데이터는 `minute` 단위 기간으로 받는다.
+- 행 구성:
+  - `url` 그룹에는 홈페이지(`https://www.koreatimes.co.kr`)가 1위로 섞인다. 기사만 쓰려면 경로로 걸러야 한다.
+  - `pageViewsTotal`과 `uniqueUsers`를 함께 요청하면 지표마다 정렬된 결과 객체가 따로 온다.
+- 응답은 1~3초 안에 왔다.
+
+### 국가 분리
+
+- 필터 값으로 국가명을 쓰면 안 된다. `{"filter":"country","op":"eq","value":["South Korea"]}`는 **HTTP 204**였다.
+- 응답 `items`의 `id`(GeoNames ID)를 써야 한다.
+  - `{"filter":"country","op":"eq","value":["1835841"]}`(국내)는 200이었다. 30분 PV 1,275, UV 597.
+  - `{"filter":"country","op":"neq","value":["1835841"]}`(해외)는 200이었다. 30분 PV 2,670, UV 2,167.
+  - 이 시간대 PV의 약 1/3이 국내, 2/3가 해외였다.
+- 국내와 해외 상위 기사는 다르다. 국내 2위는 한국은행 금리 기사였고, 해외 2위는 K-pop 기사였다.
+- `groupBy: ["url", "country"]`는 30분만으로도 500행 상한에 닿았다. 기사 319개 × 국가 48개였다. 국가 분리는 그룹화가 아니라 국내·해외 필터 2회로 한다.
+- 주요 ID 예: South Korea `1835841`. 다른 국가 ID는 `groupBy: ["country"]` 응답의 `items[].id`에서 얻는다.
+
+### 호출 한도
+
+- 정상 호출 직후(같은 초) 두 번째 호출을 보내면 **HTTP 429**가 오고 본문은 `{"msg":"Exceeded rate limit"}`(29바이트)다.
+- `Retry-After`, `X-RateLimit-*` 같은 한도 헤더는 200·429 응답 어디에도 없다. 남은 횟수를 알 수 없으므로 클라이언트가 직접 간격을 관리한다.
+- 공식 가이드상 한도는 계정 전체가 공유한다. 요금표에는 Pro 기준 "1 request per minute included", 동시 요청 추가는 $599로 나온다. 더 높은 한도는 계정 관리자에게 문의한다.
+- 5분 주기로 쓸 수 있는 호출은 최대 5회다. 같은 계정의 다른 작업(Explore 화면 사용 여부는 미확인, 정기 수집 스크립트)도 이 예산을 함께 쓴다.
+
+### 유입 경로
+
+- 실시간 30분 `groupBy: ["source"]` 상위는 `dark social` 909, `Google` 869, `direct` 610, `Google Discover` 459, `bookmark` 389 순이다.
+- `{"filter":"source","op":"eq","value":["Google Discover"]}` + `groupBy: ["url"]`은 200으로 기사별 Discover 유입 PV를 준다. `source`는 `id`와 `value`가 같다.
+
+### 경쟁사 모니터링 (koreaherald.com)
+
+- API 실측 결과:
+  - `groupBy: ["host"]`(7일)로 조회하면 `www.koreatimes.co.kr`과 PV 101의 관련 없는 호스트 하나만 나온다. 다른 매체 데이터는 없다.
+  - `{"filter":"host","op":"like","value":["koreaherald"]}`는 200이었다. 하지만 합계(1,130,752)가 필터 없는 조회와 같았다. **필터가 조용히 무시된 것이다.** 필터가 틀려도 오류가 나지 않으므로, 필터를 쓸 때마다 합계가 줄었는지로 효과를 확인해야 한다.
+  - `discoverMonitoring::visibility`, `discoverMonitoring::articleCount`, `socialMonitoring::posts`, `googleNewsPosition`은 `url` 그룹(7일)과 `host` 그룹(30일) 모두 **HTTP 204**였다.
+- 공식 문서 (2026-10-22 조사):
+  - 경쟁사 기능은 별도 제품 "Marfeel Monitoring"이다. Discover, Social, SERP 모니터링으로 구성된다. UI에서 host와 publisher 필터로 특정 경쟁사를 지정할 수 있다. 출처: [Marfeel Monitoring](https://www.marfeel.com/docs/monitoring/marfeel-monitoring-for-discover-and-social-trends), [Discover Monitoring](https://www.marfeel.com/docs/monitoring/discover-monitoring-doc/google-discover-monitoring-for-publishers)
+  - 제공하는 값은 다음 두 가지뿐이고, 경쟁사의 페이지뷰는 주지 않는다. 출처: [Discover 가시성 점수](https://www.marfeel.com/docs/monitoring/discover-monitoring-doc/google-discover-monitoring-data-and-visibility-scores), [Social 지표](https://www.marfeel.com/docs/monitoring/social-monitoring-doc/social-monitoring-metrics-and-interaction-data)
+    - Discover 피드를 수집해 계산한 가시성 점수. 조회수 대신 쓰는 근사 지표다.
+    - 공개 소셜 게시물의 인터랙션
+  - Reporting API 개발자 가이드에는 Monitoring 지표나 경쟁사를 지정하는 차원이 나오지 않는다. 요금표에도 Monitoring 가격이 없다.
+- 결론: 이 계정의 Reporting API로는 경쟁사 데이터를 조회할 수 없다. 담당자에게 다음 두 가지를 확인한다.
+  - Monitoring 제품을 계약했는지
+  - 계약했다면 Monitoring UI의 쿼리를 API로 호출할 수 있는지. 브라우저 Network 패널의 요청으로 확인할 수 있다.
+  - 확인 전까지 경쟁사 감점(`P_comp`)은 RSS 방식을 유지한다.
+
+### 수집 서비스 설계에 넘길 제약
+
+- 5분 주기 기본 호출은 국내 1회(`country eq 1835841`)와 해외 1회(`neq`)로 2회다. 남는 3회는 `source` 분리, 재시도, 다른 작업에 쓴다.
+- 기사 수가 50~500개를 넘으면 `from`으로 페이지를 넘겨야 하고, 페이지마다 호출 1회를 쓴다.
+- 기간은 `minute` 단위(예: 최근 30분)로 지정한다. `day` 단위는 오늘을 빼고 응답한다.
+- 429가 오면 다음 분까지 기다린다. 헤더로 남은 횟수를 알 수 없어 호출 시각을 직접 기록한다. 기존 `scripts/marfeel_collect.py`의 상태 파일 방식이 이렇게 동작한다.
+- 잘못된 지표, 차원, 필터 값은 오류 없이 무시되거나 204로 온다. 필터를 쓸 때는 합계 변화로 효과를 확인한다.
+- 홈페이지 URL을 걸러야 한다.
