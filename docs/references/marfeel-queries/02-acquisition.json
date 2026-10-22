@@ -1,0 +1,28 @@
+{
+  "dates": {
+    "period": "preset",
+    "preset": "last30days"
+  },
+  "filters": [],
+  "groupBy": [
+    "source",
+    "country"
+  ],
+  "metrics": [
+    "uniqueUsers",
+    "pageViewsTotal",
+    "pageViewsPerUser",
+    "averageDurationPerUser",
+    "averageEngagementTimePerUser",
+    "adsImpressions",
+    "adsPerPage"
+  ],
+  "order": {
+    "metric": "uniqueUsers",
+    "sort": "DESC"
+  },
+  "granularity": "none",
+  "discardOld": "false",
+  "from": 0,
+  "limit": 100
+}

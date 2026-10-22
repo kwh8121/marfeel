@@ -1,0 +1,32 @@
+{
+  "dates": {
+    "period": "preset",
+    "preset": "last30days"
+  },
+  "filters": [],
+  "groupBy": [
+    "section",
+    "author"
+  ],
+  "metrics": [
+    "uniqueUsers",
+    "pageViewsTotal",
+    "newArticles",
+    "pageViewsPerArticle",
+    "uniqueUsersPerArticle",
+    "pageViewsPerUser",
+    "averageDurationPerUser",
+    "averageEngagementTimePerUser",
+    "averageScroll",
+    "averageRFV",
+    "cumulativeRFV"
+  ],
+  "order": {
+    "metric": "pageViewsTotal",
+    "sort": "DESC"
+  },
+  "granularity": "none",
+  "discardOld": "false",
+  "from": 0,
+  "limit": 100
+}

@@ -6,3 +6,4 @@
 - [2026-10-22 작업일지](jobs/2026-10-22.md)
 - [Marfeel API 인증·연동 레퍼런스](references/Marfeel%20API-reference.md) — 토큰 발급, Reporting API 요청 명세
 - [Marfeel 수집 가능 데이터 범위](references/marfeel-data-scope.md) — 이 계정에서 실측한 지표·차원
+- [Marfeel 수집 쿼리](references/marfeel-queries/README.md) — 목적별 Reporting API 요청 본문 3종

@@ -1,0 +1,31 @@
+{
+  "dates": {
+    "period": "preset",
+    "preset": "last30days"
+  },
+  "filters": [],
+  "groupBy": [
+    "publishDate",
+    "author"
+  ],
+  "metrics": [
+    "searchImpressions",
+    "searchClicks",
+    "searchCTR",
+    "searchPosition",
+    "discoverImpressions",
+    "discoverClicks",
+    "discoverCTR",
+    "googleNewsImpressions",
+    "googleNewsClicks",
+    "googleNewsCTR"
+  ],
+  "order": {
+    "metric": "searchImpressions",
+    "sort": "DESC"
+  },
+  "granularity": "none",
+  "discardOld": "false",
+  "from": 0,
+  "limit": 100
+}
