@@ -9,7 +9,7 @@
 
 - 로그인(`POST /api/user/signin`)과 조회(`POST /api/dashboard/query`)가 모두 HTTP 200으로 성공했다.
 - 호출 한도는 계정당 분당 1회, 응답당 최대 500행이다. 모든 탐색은 호출 사이에 65초를 두고 수행했다.
-- 이 계정에서 값이 있는 지표는 확인된 범위로 `uniqueUsers`, `pageViewsTotal`, `newArticles`, `discoverClicks`, `discoverImpressions`, `searchPosition`, `adsPerPage`, `socialPosts`에 6절에서 확인한 `totalDuration`, `averageRFV`, `adsImpressions`, `searchImpressions`, `searchClicks` 5개를 더한 13개다. `revenueTotal`과 `CPM`은 이름은 유효하지만 값이 0이다.
+- 이 계정에서 값이 있는 지표는 확인된 범위로 `uniqueUsers`, `pageViewsTotal`, `newArticles`, `discoverClicks`, `discoverImpressions`, `searchPosition`, `adsPerPage`, `socialPosts`에 6절에서 확인한 `totalDuration`, `averageRFV`, `adsImpressions`, `searchImpressions`, `searchClicks` 5개, 그리고 앱 카탈로그에서 확인한 15개를 더한 28개다. 수익 계열(`revenueTotal`, `CPM`, `RPM`, `ARPU`, `revenueTotalPerArticle`)과 모니터링 계열은 이름은 유효하지만 값이 0이다.
 - `uniqueSessions`, `pageViewsPerSession`, `sessionsPerUser`, `uniqueRegisteredUsers`는 `rawData` 권한이 없어 조회할 수 없다(4절).
 - Engagement·광고·미디어 계열의 나머지 후보는 권한 문제가 아니라 시도한 이름이 틀려 무시된 것으로 보이며, 실제 API 이름은 Explore에서 확인해야 한다.
 - 확인된 그룹화 차원은 `url`, `title`, `section`, `visitorFrequency`, `folder`, `host`, `uri`, `pageTechnology`, `country`, `sentiment`, `source`, `customerLoyalty`(값이 `0` 하나뿐)이다. 6절에서 `deviceType`, `medium`, `author`, `contentByAge`, `publishDate`도 확인했다. 도시(`city`)는 Enterprise 전용이다. 브라우저·OS 등 나머지 방문자 세부 차원은 이름을 확인하지 못했다(5절). `groupBy`는 잘못된 이름도 200으로 받으므로 라벨 해석에 주의한다.
@@ -165,6 +165,45 @@ Explore 화면에서 쿼리를 만들고 "Get JSON API"로 복사한 본문 기�
 | Article publish date | `publishDate` | 차원 |
 
 화면 이름을 camelCase로 바꾼 추측이 자주 틀린 이유다(예: `totalReadingDuration`→실제 `totalDuration`, `adImpressions`→실제 `adsImpressions`, `deviceCategory`→실제 `deviceType`, `trafficMedium`→실제 `medium`).
+
+### 앱 카탈로그 지표 27개 검증 결과 (2026-10-22, 최근 7일, `section` 기준)
+
+사용자가 Marfeel 앱의 지표 카탈로그에서 찾은 ID(지표 41개, 차원 8개) 중 아직 검증하지 않은 지표 27개를 API로 호출했다. 차원 8개(`deviceType`, `medium`, `source`, `author`, `section`, `contentByAge`, `publishDate`, `country`)는 앞서 모두 검증했다. 27개 모두 HTTP 200이었고 권한 오류는 없었다.
+
+**값이 나오는 지표 (15개)**
+
+| 지표 | 값 | 비고 |
+| --- | --- | --- |
+| `pageViewsPerArticle` | 13.21 | 기사당 페이지뷰 |
+| `uniqueUsersPerArticle` | 8.59 | 기사당 순방문자 |
+| `pageViewsPerUser` | 1.54 | |
+| `averageDurationPerUser` | 153.73 | 단위는 초로 추정(`totalDuration`÷`uniqueUsers`와 일치) |
+| `averageDurationPerPage` | 99.92 | 위와 같음 |
+| `totalEngagementTime` | 32,314,407.02 | |
+| `averageEngagementTimePerUser` | 43.97 | |
+| `averageEngagementTimePerPage` | 28.58 | |
+| `averageScroll` | 28.53 | |
+| `cumulativeRFV` | 13,169,219.81 | |
+| `searchCTR` | 1.31 | 단위는 %로 추정 |
+| `discoverCTR` | 2.73 | 단위는 %로 추정 |
+| `googleNewsImpressions` | 88,377 | |
+| `googleNewsClicks` | 1,839 | |
+| `googleNewsCTR` | 2.08 | 단위는 %로 추정 |
+
+**이름은 유효하나 값이 0인 지표 (12개)**: `revenueTotalPerArticle`, `RPM`, `ARPU`(수익 데이터 없음, `revenueTotal`·`CPM`과 같은 원인으로 보임), `googleNewsPosition`, `discoverMonitoring::visibility`, `discoverMonitoring::timeOnFeed`, `discoverMonitoring::articleCount`, `socialMonitoring::interactions`, `socialMonitoring::posts`, `socialMonitoring::shares`, `socialMonitoring::comments`, `socialMonitoring::reactions`.
+
+- Discover Monitoring과 Social Monitoring 지표는 ID에 `접두어::이름` 형식이 붙는다. 값이 0인 것은 해당 모니터링 기능이 이 사이트에 활성화되어 있지 않기 때문일 수 있으나 확인하지 못했다. 앞서 확인한 `socialPosts`(325)와 `socialMonitoring::posts`(0)는 서로 다른 지표다.
+- 41개 중 `New original articles`, `Unique sessions`, `City`는 Enterprise 전용이라 제외되었다.
+
+### 요청 설계 권고
+
+사용자가 조립한 단일 쿼리(차원 8개 × 지표 41개)를 한 번에 호출하는 것은 권장하지 않는다. 차원이 겹쳐 그룹이 잘게 쪼개지고(추정), Search·Discover·News 지표는 방문자 차원과 섞이면 0이 되기 때문이다. 목적별로 나눈다.
+
+| 목적 | 차원 | 지표 |
+| --- | --- | --- |
+| 편집 성과 | `section`, `author` | 기사당 지표, 체류·참여 지표 |
+| 유입 | `source`, `country`, `deviceType` | 사용자 지표, 광고 지표 |
+| Google | `publishDate`, `author` | Search·Discover·News 지표 |
 
 ### Explore가 보여준 요청 형식
 
