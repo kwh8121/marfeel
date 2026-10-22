@@ -190,6 +190,8 @@ Explore 화면에서 쿼리를 만들고 "Get JSON API"로 복사한 본문 기�
 | `googleNewsClicks` | 1,839 | |
 | `googleNewsCTR` | 2.08 | 단위는 %로 추정 |
 
+`pageViewsPerArticle`·`uniqueUsersPerArticle`의 분모는 `newArticles`(신규 발행 수)가 아니라 기간 중 조회된 기사 수로 보인다. 자세한 근거는 [수집 쿼리 README](marfeel-queries/README.md)의 사용 시 주의를 참고한다.
+
 **이름은 유효하나 값이 0인 지표 (12개)**: `revenueTotalPerArticle`, `RPM`, `ARPU`(수익 데이터 없음, `revenueTotal`·`CPM`과 같은 원인으로 보임), `googleNewsPosition`, `discoverMonitoring::visibility`, `discoverMonitoring::timeOnFeed`, `discoverMonitoring::articleCount`, `socialMonitoring::interactions`, `socialMonitoring::posts`, `socialMonitoring::shares`, `socialMonitoring::comments`, `socialMonitoring::reactions`.
 
 - Discover Monitoring과 Social Monitoring 지표는 ID에 `접두어::이름` 형식이 붙는다. 값이 0인 것은 해당 모니터링 기능이 이 사이트에 활성화되어 있지 않기 때문일 수 있으나 확인하지 못했다. 앞서 확인한 `socialPosts`(325)와 `socialMonitoring::posts`(0)는 서로 다른 지표다.

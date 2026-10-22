@@ -19,4 +19,5 @@ Reporting API(`POST https://api.newsroom.bi/api/dashboard/query`) 요청 본문 
 - 03번의 Search·Discover·News 지표는 `medium` 같은 방문자 차원과 섞으면 0이 되므로 방문자 차원을 추가하지 않는다. 기사 차원(`publishDate`, `author`, `section`)만 쓴다.
 - 02번의 `country` 대신 `deviceType`을 쓰면 기기별 유입을 볼 수 있다. 차원은 2개 이하로 유지한다.
 - 시간 지표는 초 단위, CTR은 % 단위로 추정한다(값의 크기 기준, 공식 문서에 명시 없음).
+- `pageViewsPerArticle`·`uniqueUsersPerArticle`의 분모는 `newArticles`가 아니다. `newArticles`는 기간 중 신규 발행 수이고, 기사당 지표는 기간 중 조회된 기사(오래된 기사 포함) 수 기준으로 보인다(2026-10-22 01번 쿼리 결과로 확인: `southkorea`/`Yonhap`은 `newArticles` 330, 분모 약 5,337). 그래서 `PV ÷ newArticles`로 재계산하면 값이 다르다. 홈(`MAIN`)처럼 URL이 하나뿐인 그룹은 분모가 1이라 기사당 값이 합계와 같다. 분모가 정수가 아닌 그룹이 많아 일별 값의 평균일 수 있으나 정확한 정의는 확인하지 못했다.
 - `author`에는 기자 이름 외에 매체 URL(`https://www.koreatimes.co.kr`)과 `KTimes` 같은 값이 섞여 있다.
