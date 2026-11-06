@@ -5,6 +5,7 @@
 - [2026-10-21 작업일지](jobs/2026-10-21.md)
 - [2026-10-22 작업일지](jobs/2026-10-22.md)
 - [2026-11-05 작업일지](jobs/2026-11-05.md)
+- [2026-11-06 작업일지](jobs/2026-11-06.md)
 - [goatway 기사 원장 수집 계획](jobs/2026-11-06-goatway-ledger-collection-plan.md) — 수집 범위·순서·재시도, SQLite 저장 구조, 검증·완료 기준
 - [Marfeel 데이터 수집 스크립트 가이드](guides/marfeel-collection.md) — 토큰 발급·수집 실행 방법
 - [Marfeel API 인증·연동 레퍼런스](references/Marfeel%20API-reference.md) — 토큰 발급, Reporting API 요청 명세
