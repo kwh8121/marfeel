@@ -9,7 +9,7 @@
 
 - 로그인(`POST /api/user/signin`)과 조회(`POST /api/dashboard/query`)가 모두 HTTP 200으로 성공했다.
 - 호출 한도는 계정당 분당 1회, 응답당 최대 500행이다. 모든 탐색은 호출 사이에 65초를 두고 수행했다. 60초 안의 두 번째 호출은 실측에서 HTTP 429였다(8절).
-- 기사별 실시간 조회(1·5분 단위)와 국내·해외 분리가 가능하다. 경쟁사(koreaherald.com) 데이터는 이 API로 조회되지 않는다(8절).
+- 기사별 실시간 조회(1·5분 단위)와 국내·해외 분리가 가능하다. 경쟁사(koreaherald.com) 데이터는 이 API로 조회되지 않고, 별도 제품 Marfeel Monitoring도 현재 지원되지 않는다(8절, 2026-11-06 사용자 확인).
 - 이 계정에서 값이 있는 지표는 확인된 범위로 `uniqueUsers`, `pageViewsTotal`, `newArticles`, `discoverClicks`, `discoverImpressions`, `searchPosition`, `adsPerPage`, `socialPosts`에 6절에서 확인한 `totalDuration`, `averageRFV`, `adsImpressions`, `searchImpressions`, `searchClicks` 5개, 그리고 앱 카탈로그에서 확인한 15개를 더한 28개다. 수익 계열(`revenueTotal`, `CPM`, `RPM`, `ARPU`, `revenueTotalPerArticle`)과 모니터링 계열은 이름은 유효하지만 값이 0이다.
 - `uniqueSessions`, `pageViewsPerSession`, `sessionsPerUser`, `uniqueRegisteredUsers`는 `rawData` 권한이 없어 조회할 수 없다(4절).
 - Engagement·광고·미디어 계열의 나머지 후보는 권한 문제가 아니라 시도한 이름이 틀려 무시된 것으로 보이며, 실제 API 이름은 Explore에서 확인해야 한다.
@@ -196,7 +196,7 @@ Explore 화면에서 쿼리를 만들고 "Get JSON API"로 복사한 본문 기�
 
 **이름은 유효하나 값이 0인 지표 (12개)**: `revenueTotalPerArticle`, `RPM`, `ARPU`(수익 데이터 없음, `revenueTotal`·`CPM`과 같은 원인으로 보임), `googleNewsPosition`, `discoverMonitoring::visibility`, `discoverMonitoring::timeOnFeed`, `discoverMonitoring::articleCount`, `socialMonitoring::interactions`, `socialMonitoring::posts`, `socialMonitoring::shares`, `socialMonitoring::comments`, `socialMonitoring::reactions`.
 
-- Discover Monitoring과 Social Monitoring 지표는 ID에 `접두어::이름` 형식이 붙는다. 값이 0인 것은 해당 모니터링 기능이 이 사이트에 활성화되어 있지 않기 때문일 수 있으나 확인하지 못했다. 앞서 확인한 `socialPosts`(325)와 `socialMonitoring::posts`(0)는 서로 다른 지표다.
+- Discover Monitoring과 Social Monitoring 지표는 ID에 `접두어::이름` 형식이 붙는다. 값이 0인 것은 Marfeel Monitoring이 현재 지원되지 않기 때문으로 본다(2026-11-06 사용자 확인). 앞서 확인한 `socialPosts`(325)와 `socialMonitoring::posts`(0)는 서로 다른 지표다.
 - 41개 중 `New original articles`, `Unique sessions`, `City`는 Enterprise 전용이라 제외되었다.
 
 ### 요청 설계 권고
@@ -253,7 +253,7 @@ Explore 화면에서 쿼리를 만들고 "Get JSON API"로 복사한 본문 기�
 | 국가별 분리 | **가능 (필터 방식)** | `country` 필터의 `eq`/`neq`에 GeoNames ID를 넣는다. 한국은 `1835841` |
 | 호출 한도 | **분당 1회 (실측 확인)** | 60초 안의 두 번째 호출은 HTTP 429였다. 한도 헤더는 없다 |
 | 유입 경로별 데이터 | **가능** | `source`는 실시간에서도 그룹화와 필터로 모두 동작한다 |
-| 경쟁사 모니터링 | **API로 불가, 담당자 확인 필요** | 아래 "경쟁사 모니터링" 참고 |
+| 경쟁사 모니터링 | **불가 (Marfeel Monitoring 현재 미지원, 2026-11-06 사용자 확인)** | 아래 "경쟁사 모니터링" 참고 |
 
 ### 실시간 조회
 
@@ -304,10 +304,10 @@ Explore 화면에서 쿼리를 만들고 "Get JSON API"로 복사한 본문 기�
     - Discover 피드를 수집해 계산한 가시성 점수. 조회수 대신 쓰는 근사 지표다.
     - 공개 소셜 게시물의 인터랙션
   - Reporting API 개발자 가이드에는 Monitoring 지표나 경쟁사를 지정하는 차원이 나오지 않는다. 요금표에도 Monitoring 가격이 없다.
-- 결론: 이 계정의 Reporting API로는 경쟁사 데이터를 조회할 수 없다. 담당자에게 다음 두 가지를 확인한다.
-  - Monitoring 제품을 계약했는지
-  - 계약했다면 Monitoring UI의 쿼리를 API로 호출할 수 있는지. 브라우저 Network 패널의 요청으로 확인할 수 있다.
-  - 확인 전까지 경쟁사 감점(`P_comp`)은 RSS 방식을 유지한다.
+- 결론: 이 계정의 Reporting API로는 경쟁사 데이터를 조회할 수 없다.
+- 2026-11-06 갱신: Marfeel Monitoring은 현재 지원되지 않는다(사용자 확인). 2026-10-22에 남긴 담당자 확인 항목(계약 여부, UI 쿼리의 API 호출 가능 여부)은 닫는다.
+  - 경쟁사 감점(`P_comp`)은 RSS 방식을 유지한다.
+  - 발제 문서 r4의 4.1b 신호 선별표에서도 제외했다.
 
 ### 수집 서비스 설계에 넘길 제약
 
