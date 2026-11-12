@@ -64,6 +64,9 @@ REPORTS = {
     "pagepath": (["pagePath"], ["screenPageViews", "activeUsers"]),
     "segment": (["pagePath", "country", "languageCode"],
                 ["screenPageViews", "activeUsers", "userEngagementDuration"]),
+    # 유입 유형(sessionDefaultChannelGroup)을 더한 보고서. A 근사 비중이 유입에 따라 움직이는지 보는 N3 1단계 입력
+    "channel": (["pagePath", "sessionDefaultChannelGroup", "country", "languageCode"],
+                ["screenPageViews", "activeUsers", "userEngagementDuration"]),
 }
 
 
@@ -101,7 +104,7 @@ def main():
     ap.add_argument("--start", default=DEFAULT_START)
     ap.add_argument("--end", help="YYYY-MM-DD. 기본: 오늘 - 1일")
     ap.add_argument("--report", choices=sorted(REPORTS), default="pagepath",
-                    help="pagepath(기본): 경로별 PV. segment: 경로 × 국가 × 언어 PV·사용자·참여 시간")
+                    help="pagepath(기본): 경로별 PV. segment: 경로 × 국가 × 언어, channel: 경로 × 유입 채널 × 국가 × 언어")
     ap.add_argument("--sleep", type=float, default=0.5)
     ap.add_argument("--max-days", type=int, help="이번 실행에서 받을 최대 일수(시험용)")
     args = ap.parse_args()
