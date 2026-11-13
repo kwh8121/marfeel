@@ -37,6 +37,9 @@ r5의 결과 변수(GA4 `screenPageViews`, AMP 경로 포함)를 기사별로 �
 - 새 URL이 GA4에 본격 잡히는 시점은 2025-04-01 ~ 04-03이다(r5의 "2025-04 전후"를 좁힌 값). 이전은 옛 URL(`/pages/article.asp/{ID}`)이라 원장과 URL로 붙지 않는다
 - r5의 "개편 후 첫 90일은 기준선 전용"을 적용하면 2025-07-02 전후까지가 기준선 전용이고, 이 구간의 뒤쪽(06-09 ~ 07-04)이 `(other)`로 기사별 PV가 불량하다. 분석 구간은 **2025-07 초 이후**로 잡는 것이 자연스럽다
 
+- 유입 채널 수집(`--report channel`, 2026-11-12): `data/ga4/raw/channel/{YYYY-MM-DD}.json.gz`. `rows`는 `[pagePath, sessionDefaultChannelGroup, country, languageCode, PV, 활성 사용자, 참여 시간]`. 분석 구간(2025-07-01)부터 받는다. 일 약 1.6MB, 499일 오류 없음. 락 `.lock-channel`, 로그 `data/ga4/collect_channel.log`
+- 채널 자동 실행(2026-11-13 등록, 사용자 승인): cron 매일 08:58·13:58·18:58·23:58 + 부팅 7분 뒤. 등록 전 crontab 백업 `data/ga4/crontab-before-channel.txt`. 정시 실행은 아직 확인하지 않았다
+
 ### 세그먼트 보고서와 `(other)` (2026-11-12)
 
 - 세그먼트 629일은 `(other)` 손실이 전부 0이다. `pagepath` 손실 구간(201일)에서도 같다
