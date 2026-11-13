@@ -12,7 +12,7 @@ r5의 결과 변수(GA4 `screenPageViews`, AMP 경로 포함)를 기사별로 �
 - 사용: `python3 scripts/ga4_collect.py` (`--start`, `--end`, `--max-days`, `--report pagepath|segment`)
 - 세그먼트 수집(`--report segment`, 2026-11-12): `data/ga4/raw/segment/{YYYY-MM-DD}.json.gz`. `rows`는 `[pagePath, country, languageCode, screenPageViews, activeUsers, userEngagementDuration]`. N3·G1의 국가 × 언어 입력이다. 2025-02-21 ~ 2026-11-11, 629일 오류 없음, 일 약 0.8MB(전체 약 0.5GB). 락 파일은 보고서별(`.lock-segment`)이라 `pagepath` 수집과 겹쳐 돌 수 있다. 로그 `data/ga4/collect_segment.log`
 - 자동 실행(2026-11-11 등록, 사용자 승인): cron 매일 08:50·13:50·18:50·23:50 + 부팅 5분 뒤. 받은 날은 건너뛰어 PC가 꺼졌다 켜져도 따라잡는다. 로그 `data/ga4/collect.log`
-- 세그먼트 자동 실행(2026-11-12 등록, 사용자 승인): cron 매일 08:55·13:55·18:55·23:55 + 부팅 6분 뒤. 등록 전 crontab 백업 `data/ga4/crontab-before-segment.txt`. 정시 실행은 아직 확인하지 않았다
+- 세그먼트 자동 실행(2026-11-12 등록, 사용자 승인): cron 매일 08:55·13:55·18:55·23:55 + 부팅 6분 뒤. 등록 전 crontab 백업 `data/ga4/crontab-before-segment.txt`. 첫 정시 실행 확인(2026-11-13 13:55·13:58, 최근 4일 수집, 오류 없음)
 - 상태 점검: `scripts/collect_health.py`가 GA4 빠진 날도 본다
 
 ## 할당량 (확인됨, 2026-11-11)
@@ -38,7 +38,7 @@ r5의 결과 변수(GA4 `screenPageViews`, AMP 경로 포함)를 기사별로 �
 - r5의 "개편 후 첫 90일은 기준선 전용"을 적용하면 2025-07-02 전후까지가 기준선 전용이고, 이 구간의 뒤쪽(06-09 ~ 07-04)이 `(other)`로 기사별 PV가 불량하다. 분석 구간은 **2025-07 초 이후**로 잡는 것이 자연스럽다
 
 - 유입 채널 수집(`--report channel`, 2026-11-12): `data/ga4/raw/channel/{YYYY-MM-DD}.json.gz`. `rows`는 `[pagePath, sessionDefaultChannelGroup, country, languageCode, PV, 활성 사용자, 참여 시간]`. 분석 구간(2025-07-01)부터 받는다. 일 약 1.6MB, 499일 오류 없음. 락 `.lock-channel`, 로그 `data/ga4/collect_channel.log`
-- 채널 자동 실행(2026-11-13 등록, 사용자 승인): cron 매일 08:58·13:58·18:58·23:58 + 부팅 7분 뒤. 등록 전 crontab 백업 `data/ga4/crontab-before-channel.txt`. 정시 실행은 아직 확인하지 않았다
+- 채널 자동 실행(2026-11-13 등록, 사용자 승인): cron 매일 08:58·13:58·18:58·23:58 + 부팅 7분 뒤. 등록 전 crontab 백업 `data/ga4/crontab-before-channel.txt`. 첫 정시 실행 확인(2026-11-13 13:55·13:58, 최근 4일 수집, 오류 없음)
 
 ### 세그먼트 보고서와 `(other)` (2026-11-12)
 
