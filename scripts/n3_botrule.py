@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """N3 봇 의심 행 × 일 규칙(읽기 전용, 표준 라이브러리). 입력 data/ga4/raw/channel, n3_bot_tiers.csv.
-규칙(해외 국가 × 언어 × 일, 모두 제안값):
-  1) 그날 사용자당 참여 시간(Σ참여/Σ사용자) < 7초 → 후보
-  2) 그날 PV >= 직전 28일 일 PV 중앙값(최소 50)의 5배 → 폭증
-  3) 후보 & 폭증 & Direct+Unassigned 비중 >= 90% → 봇 의심
+규칙 v2(해외 국가 × 언어 × 일, 제안값, 2026-11-13 수정 승인):
+  봇 의심 = 그날 PV >= 50 & 사용자당 참여 시간(Σ참여/Σ사용자) < 7초 & Direct+Unassigned 비중 >= 90%
+  폭증 열(참고용, 제외 기준 아님) = 그날 PV >= 직전 28일 일 PV 중앙값(최소 50)의 5배
+v1(폭증 필수)은 상시 봇 행(2026-01-05 중국 zh-cn, 기준선 대비 2.8배)을 못 잡아 폐기했다.
 출력: data/analysis/n3_bot_days.csv(봇 의심 행×일), 표준 출력 검증 요약
-검증: 의심 사례 포착, normal 티어 오탐, 임계값 민감도, 제외 전후 기사 순위(72시간 PV)
+검증: 의심 사례 포착, 티어와의 차이, 임계값 민감도, 제외 전후 기사 순위(72시간 PV)
 """
 import csv, glob, gzip, json, re, statistics
 from collections import defaultdict
@@ -34,36 +34,49 @@ for f in FILES:
         if ch in CORE: a[3] += pv
 
 
-def flag(mult, share, eng_th=7.0, min_base=50):
+def flag(eng_th=7.0, share=0.90, min_pv=50):
     out = {}  # (row, day) -> pv
     for row, days in daily.items():
         for day, (pv, au, eng, core) in days.items():
-            if au == 0 or eng / au >= eng_th: continue
-            hist = [days.get(day - timedelta(k), [0])[0] for k in range(1, 29)]
-            if day - timedelta(28) < min(days) and day - timedelta(28) < date(2025, 7, 1): continue  # 기준선 부족
-            base = max(statistics.median(hist), min_base)
-            if pv >= mult * base and core / pv >= share: out[(row, day)] = pv
+            if pv >= min_pv and au and eng / au < eng_th and core / pv >= share:
+                out[(row, day)] = pv
     return out
 
 
-base = flag(5, 0.90)
+def spike(row, day):
+    days = daily[row]
+    if day - timedelta(28) < date(2025, 7, 1): return ""
+    base = max(statistics.median([days.get(day - timedelta(k), [0])[0] for k in range(1, 29)]), 50)
+    return int(days[day][0] >= 5 * base)
+
+
+base = flag()
 with open(A / "n3_bot_days.csv", "w", newline="", encoding="utf-8") as fh:
-    w = csv.writer(fh); w.writerow(["country", "language", "date", "pv", "tier"])
-    for ((ct, lg), day), pv in sorted(base.items(), key=lambda x: (x[0][0], x[0][1])): w.writerow([ct, lg, day, pv, tier.get((ct, lg), "-")])
+    w = csv.writer(fh); w.writerow(["country", "language", "date", "pv", "tier", "spike5x"])
+    for ((ct, lg), day), pv in sorted(base.items(), key=lambda x: (x[0][0], x[0][1])):
+        w.writerow([ct, lg, day, pv, tier.get((ct, lg), "-"), spike((ct, lg), day)])
 tot = sum(v[0] for r in daily.values() for v in r.values())
-print(f"해외 PV 합 {tot:,} | 기본 규칙 의심 행×일 {len(base)}건, PV {sum(base.values()):,} ({sum(base.values()) / tot:.1%})")
+print(f"해외 PV 합 {tot:,} | v2 규칙 의심 행×일 {len(base)}건, PV {sum(base.values()):,} ({sum(base.values()) / tot:.1%})")
 bt = defaultdict(lambda: [0, 0])
 for (row, day), pv in base.items(): bt[tier.get(row, "-")][0] += 1; bt[tier.get(row, "-")][1] += pv
 print("티어별 의심 건수·PV:", {k: tuple(v) for k, v in bt.items()})
-for d in ("2025-07-14", "2026-01-05", "2025-07-08"):
+for d in ("2026-01-05", "2026-01-04"):
     hit = {k[0]: v for k, v in base.items() if str(k[1]) == d}
     print(f"사례 {d}: 의심 {len(hit)}행, PV {sum(hit.values()):,}", sorted(hit.items(), key=lambda x: -x[1])[:2])
-normal_days = sum(len(days) for row, days in daily.items() if tier.get(row) == "normal")
-print(f"normal 티어 행×일 {normal_days}개 중 의심 {bt['normal'][0]}건({bt['normal'][0] / max(normal_days, 1):.2%}), PV {bt['normal'][1]:,}")
-print("민감도(배수, 비중) → 건수, PV:")
-for m, s in ((3, .9), (5, .9), (10, .9), (5, .8), (5, .95)):
-    r = flag(m, s); print(f"  {m}배·{s:.0%}: {len(r)}건, {sum(r.values()):,} ({sum(r.values()) / tot:.1%})")
-loose = flag(3, .8)
+# 티어 대비 이점
+st = [(r, days) for r, days in daily.items() if tier.get(r) == "strong"]
+sd = sum(len(d) for _, d in st); spv = sum(v[0] for _, d in st for v in d.values())
+flagged_in_strong = sum(1 for (r, dd) in base if tier.get(r) == "strong")
+fpv = sum(pv for (r, dd), pv in base.items() if tier.get(r) == "strong")
+print(f"strong 티어 행×일 {sd}개 중 의심 {flagged_in_strong}건({flagged_in_strong / max(sd, 1):.0%}), PV {fpv:,} / strong 전체 PV {spv:,} ({fpv / max(spv, 1):.0%}) → 나머지는 strong인데 그날은 정상으로 판정")
+nd = sum(len(d) for r, d in daily.items() if tier.get(r) == "normal")
+print(f"normal 티어 행×일 {nd}개 중 의심 {bt['normal'][0]}건({bt['normal'][0] / max(nd, 1):.2%}), PV {bt['normal'][1]:,}")
+sp = sum(1 for (r, dd) in base if spike(r, dd) == 1)
+print(f"의심 중 5배 폭증 동반 {sp}건({sp / max(len(base), 1):.0%})")
+print("민감도(참여 초, 직접+미지정 비중) → 건수, PV:")
+for e, sh in ((5, .9), (7, .9), (10, .9), (7, .8), (7, .95)):
+    r = flag(e, sh); print(f"  {e}초·{sh:.0%}: {len(r)}건, {sum(r.values()):,} ({sum(r.values()) / tot:.1%})")
+loose = flag(10, .8)
 
 
 def ranks(xs):
@@ -97,6 +110,6 @@ paths = [p for p, a in art.items() if a[0] >= 20]
 tt = [art[p][0] for p in paths]; rt = ranks(tt)
 top = lambda xs: set(sorted(range(len(xs)), key=lambda i: -xs[i])[:100])
 print(f"기사 {len(paths)}건")
-for name, k in (("기본(5배·90%) 제외", 1), ("느슨(3배·80%) 제외", 2)):
+for name, k in (("v2 기본(7초·90%) 제외", 1), ("느슨(10초·80%) 제외", 2)):
     ex = [art[p][0] - art[p][k] for p in paths]
     print(f"[{name}] 스피어만 {corr(rt, ranks(ex)):.4f} | 상위100 겹침 {len(top(tt) & top(ex))} | 제외 PV {sum(art[p][k] for p in paths):,}")
