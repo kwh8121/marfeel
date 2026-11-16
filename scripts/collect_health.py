@@ -8,13 +8,14 @@ import sys
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
+from ga4_common import KST, REFRESH_DAYS as GA4_REFRESH, fetched_date
+
 ROOT = Path(__file__).resolve().parent.parent
 SC = ROOT / "data" / "searchconsole" / "raw"
 DB = ROOT / "data" / "ledger" / "ledger.sqlite"
 GA4 = ROOT / "data" / "ga4" / "raw"  # 하위: pagepath, segment
 GA4_START = "2025-02-21"
 GA4_CHANNEL_START = "2025-07-01"  # channel 보고서는 분석 구간(2025-07-01)부터만 받는다
-GA4_REFRESH = 4     # ga4_collect.py REFRESH_DAYS와 같아야 한다
 GA4_LAG = 1         # ga4_collect.py의 종료일 = 오늘 - 1
 TYPES = ["web", "news", "discover", "googleNews"]
 SC_LAG = 3          # searchconsole_collect.py의 종료일 = 오늘 - 3
@@ -23,7 +24,7 @@ LEDGER_STALE_H = 36  # 마지막 성공 증분 수집이 이보다 오래되면 
 
 def main():
     bad = 0
-    today = date.today()
+    today = datetime.now(KST).date()
     for t in TYPES:
         have = {f.name[:10] for f in (SC / t).glob("*.json.gz")}
         if not have:
@@ -43,10 +44,11 @@ def main():
                     if (d0 + timedelta(i)).isoformat() not in have]
             print(f"GA4 {rep:8s} : 최신 {max(have)}, 기대 최신 {d1}, 빠진 날 {len(miss)}" + (f" {miss[:5]}" if miss else ""))
             bad += bool(miss)
-            # 덜 처리된 수집본: 그날 + GA4_REFRESH일 이내에 받았는데 그 기간이 이미 지난 날(다음 수집이 다시 받는다)
+            # 덜 처리된 수집본: 그날 + GA4_REFRESH일 이내에 받았는데 그 기간이 하루 넘게 지난 날.
+            # 하루 여유를 둔다: 수집(08:5x)이 점검과 겹치거나 아직 안 돈 날은 정상 대기라 이상으로 보지 않는다
             unsettled = [f.name[:10] for f in sorted((GA4 / rep).glob("*.json.gz"))
-                         if (datetime.fromtimestamp(f.stat().st_mtime).date() - date.fromisoformat(f.name[:10])).days <= GA4_REFRESH
-                         and (today - date.fromisoformat(f.name[:10])).days > GA4_REFRESH]
+                         if (fetched_date(f) - date.fromisoformat(f.name[:10])).days <= GA4_REFRESH
+                         and (today - date.fromisoformat(f.name[:10])).days > GA4_REFRESH + 1]
             if unsettled:
                 print(f"   덜 처리된 수집본 {len(unsettled)}건 {unsettled[:5]} → 다음 수집에서 다시 받는다")
                 bad += 1

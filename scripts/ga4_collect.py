@@ -5,7 +5,7 @@
   data/ga4/raw/pagepath/{YYYY-MM-DD}.json.gz
 저장 항목에 (other) 행 손실 여부(dataLossFromOtherRow)와 (other) PV 비중을 함께 남긴다.
 받은 날은 건너뛴다. 단 최근 REFRESH_DAYS일은 GA4 후처리로 값이 바뀔 수 있어 매번 다시 받아 덮어쓴다.
-또 받은 시각(파일 수정 시각)이 그날로부터 REFRESH_DAYS일 이내인 파일은 덜 처리된 값일 수 있어, PC가 며칠 꺼져
+또 받은 시각(파일 안의 fetchedAt)이 그날로부터 REFRESH_DAYS일 이내인 파일은 덜 처리된 값일 수 있어, PC가 며칠 꺼져
 있다 켜진 뒤에도 확정으로 보지 않고 다시 받는다.
 인증은 searchconsole_check.py의 토큰(analytics.readonly)을 쓴다.
 
@@ -24,6 +24,7 @@ import urllib.request
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
+from ga4_common import KST, REFRESH_DAYS, settled
 from searchconsole_check import DEFAULT_CLIENT, DEFAULT_TOKEN, access_token
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -35,7 +36,6 @@ PAGE = 100000
 TIMEOUT = 120
 MAX_RETRIES = 4
 TOKEN_MAX_AGE = 45 * 60
-REFRESH_DAYS = 4      # 오늘 기준 이 일수 이내의 날은 다시 받는다
 QUOTA_FLOOR = 2000    # 시간당 토큰이 이 아래로 남으면 멈춘다(프로젝트 시간당 14,000)
 
 
@@ -90,12 +90,6 @@ def fetch_day(token, day, report="pagepath"):
             return rows, meta, quota
 
 
-def settled(path, day):
-    """파일이 후처리가 끝난 뒤(그날 + REFRESH_DAYS일 초과)에 받은 것인가."""
-    fetched = datetime.fromtimestamp(path.stat().st_mtime).date()
-    return (fetched - day).days > REFRESH_DAYS
-
-
 def save(path, payload):
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".tmp")
@@ -117,7 +111,7 @@ def main():
     ap.add_argument("--max-days", type=int, help="이번 실행에서 받을 최대 일수(시험용)")
     args = ap.parse_args()
 
-    today = date.today()
+    today = datetime.now(KST).date()
     end = date.fromisoformat(args.end) if args.end else today - timedelta(days=1)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)

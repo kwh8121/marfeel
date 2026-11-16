@@ -7,21 +7,19 @@ v1(폭증 필수)은 상시 봇 행(2026-01-05 중국 zh-cn, 기준선 대비 2.
 출력: data/analysis/n3_bot_days.csv(봇 의심 행×일), 표준 출력 검증 요약
 검증: 의심 사례 포착, 티어와의 차이, 임계값 민감도, 제외 전후 기사 순위(72시간 PV)
 """
-import csv, glob, gzip, json, re, statistics
+import csv, glob, gzip, json, re, statistics, sys
 from collections import defaultdict
 from datetime import date, timedelta
 from pathlib import Path
 
+from n3_common import ANALYSIS as A, akey, load_tiers, window_closed
+
 ROOT = Path(__file__).resolve().parent.parent
-A = ROOT / "data" / "analysis"
 FILES = sorted(glob.glob(str(ROOT / "data/ga4/raw/channel/*.json.gz")))
 ART = re.compile(r"^/(?:amp/)?[^?]*?/(20\d{6})/[^/]+$")
-
-
-def akey(path):
-    """기사 키: AMP 접두(/amp)를 떼고 앞 96자(AMP 경로는 100자에서 잘려 같은 기사가 둘로 갈라졌다)."""
-    return (path[4:] if path.startswith("/amp/") else path)[:96]
-tier = {(r["country"], r["language"]): r["tier"] for r in csv.DictReader(open(A / "n3_bot_tiers.csv", encoding="utf-8"))}
+if not FILES:
+    sys.exit("입력 없음: data/ga4/raw/channel")
+tier = load_tiers()
 CORE = {"Direct", "Unassigned"}
 daily = defaultdict(dict)  # (country, lang) -> {date: [pv, au, eng, core_pv]}
 
@@ -114,7 +112,7 @@ for f in FILES:
             a = art[k]; a[0] += pv
             if ((ct, lg), day) in base: a[1] += pv
             if ((ct, lg), day) in loose: a[2] += pv
-paths = [p for p, a in art.items() if a[0] >= 20 and PUB[p] + timedelta(days=2) <= LAST]
+paths = [p for p, a in art.items() if a[0] >= 20 and window_closed(PUB[p], LAST)]
 tt = [art[p][0] for p in paths]; rt = ranks(tt)
 top = lambda xs: set(sorted(range(len(xs)), key=lambda i: -xs[i])[:100])
 print(f"기사 {len(paths)}건")

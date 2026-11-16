@@ -8,7 +8,7 @@
   n3_article_seg.csv 기사 × 세그먼트 PV(발행일부터 3일, 분석 구간에 발행된 기사)
 세그먼트: A=한국 × 비한국어, C=한국 × 한국어(ko 계열), B=한국 외 국가, X=국가 불명. 봇 제외는 하지 않는다.
 n3_bot_tiers.csv  해외 국가 × 언어 티어(PV 1만 이상, 반올림 전 값으로 판정)
-기사 키는 AMP 접두를 떼고 앞 96자, 마지막 수집일까지 72시간이 차지 않은 기사는 제외한다.
+기사 키는 AMP 접두를 떼고 앞 96자, 72시간 창이 확정되지 않은 기사(마지막 수집일 - REFRESH_DAYS일 이후)는 제외한다.
 유입 유형은 이 데이터에 없다(별도 수집 필요).
 """
 import csv, glob, gzip, json, re, sys
@@ -16,15 +16,11 @@ from collections import defaultdict
 from datetime import date, timedelta
 from pathlib import Path
 
+from n3_common import ANALYSIS as OUT, TIER_MIN_PV, akey, tier_of, window_closed
+
 ROOT = Path(__file__).resolve().parent.parent
-OUT = ROOT / "data" / "analysis"
 START = date(2025, 7, 1)                  # 분석 구간 시작(r5)
 ART = re.compile(r"^/(?:amp/)?[^?]*?/(20\d{6})/[^/]+$")
-
-
-def akey(path):
-    """기사 키: AMP 접두(/amp)를 떼고 앞 96자만 쓴다(AMP 경로는 100자에서 잘려 같은 기사가 둘로 갈라졌다)."""
-    return (path[4:] if path.startswith("/amp/") else path)[:96]
 
 
 def seg(country, lang):
@@ -41,6 +37,8 @@ def main():
     cl = defaultdict(lambda: [0, 0, 0])
     art = defaultdict(lambda: defaultdict(int))
     files = sorted(glob.glob(str(ROOT / "data/ga4/raw/segment/*.json.gz")))
+    if not files:
+        sys.exit("입력 없음: data/ga4/raw/segment")
     last = date.fromisoformat(json.load(gzip.open(files[-1], "rt", encoding="utf-8"))["date"])
     for f in files:
         d = json.load(gzip.open(f, "rt", encoding="utf-8"))
@@ -58,7 +56,7 @@ def main():
                     pub = date(int(mt[1][:4]), int(mt[1][4:6]), int(mt[1][6:]))
                 except ValueError:
                     continue
-                if START <= pub <= day <= pub + timedelta(days=2) and pub + timedelta(days=2) <= last:
+                if START <= pub <= day <= pub + timedelta(days=2) and window_closed(pub, last):
                     art[(akey(path), mt[1])][s] += pv
     with open(OUT / "n3_month_seg.csv", "w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh); w.writerow(["month", "seg", "pv", "active_users_sum", "engagement_sec"])
@@ -73,9 +71,9 @@ def main():
     with open(OUT / "n3_bot_tiers.csv", "w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh); w.writerow(["country", "language", "tier", "pv", "eng_per_user"])
         for (c, l), v in sorted(cl.items(), key=lambda x: -x[1][0]):
-            if c != "South Korea" and v[0] >= 10000 and v[1]:
-                e = v[2] / v[1]  # 반올림 전 값으로 판정(반올림하면 6.96초가 7.0초로 border 처리됨)
-                w.writerow([c, l, "strong" if e < 7 else ("border" if e < 15 else "normal"), v[0], round(e, 2)])
+            if c != "South Korea" and v[0] >= TIER_MIN_PV and v[1]:
+                e = v[2] / v[1]
+                w.writerow([c, l, tier_of(e), v[0], round(e, 2)])
     print(f"files {len(files)}, 월×세그 {len(month)}, 국가×언어 {len(cl)}, 기사 {len(art)}")
 
 
