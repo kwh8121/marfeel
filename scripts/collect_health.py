@@ -15,7 +15,7 @@ SC = ROOT / "data" / "searchconsole" / "raw"
 DB = ROOT / "data" / "ledger" / "ledger.sqlite"
 GA4 = ROOT / "data" / "ga4" / "raw"  # 하위: pagepath, segment
 GA4_START = "2025-02-21"
-GA4_CHANNEL_START = "2025-07-01"  # channel 보고서는 분석 구간(2025-07-01)부터만 받는다
+GA4_CHANNEL_START = "2025-07-01"  # channel·users 보고서는 분석 구간(2025-07-01)부터만 받는다
 GA4_LAG = 1         # ga4_collect.py의 종료일 = 오늘 - 1
 TYPES = ["web", "news", "discover", "googleNews"]
 SC_LAG = 3          # searchconsole_collect.py의 종료일 = 오늘 - 3
@@ -36,10 +36,10 @@ def main():
         print(f"SC {t:10s}: 최신 {last}, 기대 최신 {d1}, 빠진 날 {len(miss)}"
               + (f" {miss[:5]}" if miss else ""))
         bad += bool(miss)
-    for rep in ("pagepath", "segment", "channel"):
+    for rep in ("pagepath", "segment", "channel", "users"):
         have = {f.name[:10] for f in (GA4 / rep).glob("*.json.gz")}
         if have:
-            d0, d1 = date.fromisoformat(GA4_CHANNEL_START if rep == "channel" else GA4_START), today - timedelta(days=GA4_LAG)
+            d0, d1 = date.fromisoformat(GA4_CHANNEL_START if rep in ("channel", "users") else GA4_START), today - timedelta(days=GA4_LAG)
             miss = [(d0 + timedelta(i)).isoformat() for i in range((d1 - d0).days + 1)
                     if (d0 + timedelta(i)).isoformat() not in have]
             print(f"GA4 {rep:8s} : 최신 {max(have)}, 기대 최신 {d1}, 빠진 날 {len(miss)}" + (f" {miss[:5]}" if miss else ""))

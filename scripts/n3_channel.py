@@ -8,7 +8,7 @@ import csv, glob, gzip, json
 from collections import defaultdict
 
 from n3_common import ANALYSIS as A, ROOT, load_tiers
-tier = {k: "B_" + v for k, v in load_tiers().items()}  # n3_segments.py가 만든 티어
+tier = {k: "B_" + v for k, v in load_tiers().items()}  # n3_users.py가 만든 티어(고유 사용자 기준)
 month = defaultdict(int); day = defaultdict(int)
 for f in sorted(glob.glob(str(ROOT / "data/ga4/raw/channel/*.json.gz"))):
     d = json.load(gzip.open(f, "rt", encoding="utf-8")); ds = d["date"]

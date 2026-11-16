@@ -32,6 +32,7 @@ DEFAULT_OUT = ROOT / "data" / "ga4"
 PROPERTY = "340662437"
 DATA = "https://analyticsdata.googleapis.com/v1beta"
 DEFAULT_START = "2025-02-21"
+REPORT_START = {"channel": "2025-07-01", "users": "2025-07-01"}  # 분석 구간부터만 받는 보고서
 PAGE = 100000
 TIMEOUT = 120
 MAX_RETRIES = 4
@@ -69,6 +70,9 @@ REPORTS = {
     # 유입 유형(sessionDefaultChannelGroup)을 더한 보고서. A 근사 비중이 유입에 따라 움직이는지 보는 N3 1단계 입력
     "channel": (["pagePath", "sessionDefaultChannelGroup", "country", "languageCode"],
                 ["screenPageViews", "activeUsers", "userEngagementDuration"]),
+    # 경로 차원이 없는 보고서. 하루 고유 활성 사용자라 사용자당 참여 시간(N3 M1)을 경로 중복 없이 계산한다
+    "users": (["country", "languageCode"],
+              ["screenPageViews", "activeUsers", "userEngagementDuration"]),
 }
 
 
@@ -103,10 +107,10 @@ def main():
     ap.add_argument("--client-json", default=str(DEFAULT_CLIENT))
     ap.add_argument("--token-file", default=str(DEFAULT_TOKEN))
     ap.add_argument("--out", default=str(DEFAULT_OUT))
-    ap.add_argument("--start", default=DEFAULT_START)
+    ap.add_argument("--start", help="YYYY-MM-DD. 기본: 보고서별 시작일(pagepath·segment 2025-02-21, channel·users 2025-07-01)")
     ap.add_argument("--end", help="YYYY-MM-DD. 기본: 오늘 - 1일")
     ap.add_argument("--report", choices=sorted(REPORTS), default="pagepath",
-                    help="pagepath(기본): 경로별 PV. segment: 경로 × 국가 × 언어, channel: 경로 × 유입 채널 × 국가 × 언어")
+                    help="pagepath(기본): 경로별 PV. segment: 경로 × 국가 × 언어, channel: 경로 × 유입 채널 × 국가 × 언어, users: 국가 × 언어(고유 사용자)")
     ap.add_argument("--sleep", type=float, default=0.5)
     ap.add_argument("--max-days", type=int, help="이번 실행에서 받을 최대 일수(시험용)")
     args = ap.parse_args()
@@ -123,7 +127,7 @@ def main():
 
     token, token_at = access_token(args), time.time()
     done = skipped = 0
-    day = date.fromisoformat(args.start)
+    day = date.fromisoformat(args.start or REPORT_START.get(args.report, DEFAULT_START))
     while day <= end:
         path = out / "raw" / args.report / f"{day.isoformat()}.json.gz"
         if path.exists() and (today - day).days > REFRESH_DAYS and settled(path, day):

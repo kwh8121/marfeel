@@ -22,11 +22,11 @@ def tier_of(eng_per_user):
     return "strong" if eng_per_user < STRONG_SEC else ("border" if eng_per_user < BORDER_SEC else "normal")
 
 
-def load_tiers():
-    """n3_segments.py가 만든 n3_bot_tiers.csv에서 (국가, 언어) → 티어. 없는 행은 normal로 본다."""
-    path = ANALYSIS / "n3_bot_tiers.csv"
+def load_tiers(name="n3_bot_tiers.csv"):
+    """n3_users.py가 만든 n3_bot_tiers.csv(고유 사용자 기준)에서 (국가, 언어) → 티어. 없는 행은 normal로 본다."""
+    path = ANALYSIS / name
     if not path.exists():
-        sys.exit("n3_bot_tiers.csv 없음: n3_segments.py를 먼저 실행한다")
+        sys.exit(f"{name} 없음: n3_segments.py, n3_users.py를 먼저 실행한다")
     with open(path, encoding="utf-8") as fh:
         return {(r["country"], r["language"]): r["tier"] for r in csv.DictReader(fh)}
 

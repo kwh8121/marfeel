@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""N3 봇 의심 행 × 일 규칙(읽기 전용, 표준 라이브러리). 입력 data/ga4/raw/channel, n3_bot_tiers.csv.
+"""N3 봇 의심 행 × 일 규칙(읽기 전용, 표준 라이브러리). 입력 data/ga4/raw/channel(PV·유입 비중), raw/users(고유 활성 사용자·참여 시간), n3_bot_tiers.csv.
 규칙 v2(해외 국가 × 언어 × 일, 제안값, 2026-11-13 수정 승인):
-  봇 의심 = 그날 PV >= 50 & 사용자당 참여 시간(Σ참여/Σ사용자) < 7초 & Direct+Unassigned 비중 >= 90%
+  봇 의심 = 그날 PV >= 50 & 사용자당 참여 시간(Σ참여/Σ고유 사용자) < 7초 & Direct+Unassigned 비중 >= 90%
   폭증 열(참고용, 제외 기준 아님) = 그날 PV >= 직전 28일 일 PV 중앙값(최소 50)의 5배
 v1(폭증 필수)은 상시 봇 행(2026-01-05 중국 zh-cn, 기준선 대비 2.8배)을 못 잡아 폐기했다.
 출력: data/analysis/n3_bot_days.csv(봇 의심 행×일), 표준 출력 검증 요약
@@ -33,8 +33,20 @@ for f in FILES:
     for path, ch, ct, lg, pv, au, e in d["rows"]:
         if ct == "South Korea" or ct in ("(not set)", ""): continue
         a = daily[(ct, lg)].setdefault(day, [0, 0, 0, 0])
-        a[0] += pv; a[1] += au; a[2] += e
+        a[0] += pv
         if ch in CORE: a[3] += pv
+# 사용자·참여 시간은 경로 중복이 없는 고유 사용자 보고서에서 채운다(M1, 2026-11-16 채택)
+UFILES = sorted(glob.glob(str(ROOT / "data/ga4/raw/users/*.json.gz")))
+if not UFILES:
+    sys.exit("입력 없음: data/ga4/raw/users")
+miss = {Path(f).name[:10] for f in FILES} - {Path(f).name[:10] for f in UFILES}
+if miss:
+    sys.exit(f"users 파일 없는 날 {len(miss)}일({sorted(miss)[:3]}): ga4_collect.py --report users를 먼저 실행한다")
+for f in UFILES:
+    d = load(f); day = date.fromisoformat(d["date"])
+    for ct, lg, pv, au, e in d["rows"]:
+        a = daily.get((ct, lg), {}).get(day)
+        if a: a[1] = au; a[2] = e
 
 
 def flag(eng_th=7.0, share=0.90, min_pv=50):

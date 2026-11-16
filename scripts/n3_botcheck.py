@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""N3 봇 의심 행 컷오프 확인(읽기 전용). n3_bot_tiers.csv(n3_segments.py가 사용자당 참여 시간으로 만든 티어)의 3단계로 행을 나눠 본다.
+"""N3 봇 의심 행 컷오프 확인(읽기 전용). n3_bot_tiers.csv(n3_users.py가 고유 사용자당 참여 시간으로 만든 티어)의 3단계로 행을 나눠 본다.
   strong: <7초, border: 7~15초, normal: 15초 이상 (PV 1만 이상 행만 분류, 나머지는 normal)
 확인 1) 일별 PV 패턴: strong·border 일별 PV가 normal과 같이 움직이는가(상관·요일 패턴·급변일)
 확인 3) 기사 순위 민감도: 제외 기준에 따라 기사별 PV 순위가 바뀌는가(스피어만 상관, 상위 100 겹침)
@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parent.parent
 START = date(2025, 7, 1)
 ART = re.compile(r"^/(?:amp/)?[^?]*?/(20\d{6})/[^/]+$")
 
-tier = load_tiers()  # n3_segments.py가 만든 티어(없는 행은 normal)
+tier = load_tiers()  # n3_users.py가 만든 티어(고유 사용자 기준)(없는 행은 normal)
 print("분류 행:", {t: sum(1 for v in tier.values() if v == t) for t in ("strong", "border", "normal")})
 
 

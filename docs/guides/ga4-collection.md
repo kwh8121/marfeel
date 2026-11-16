@@ -40,6 +40,8 @@ r5의 결과 변수(GA4 `screenPageViews`, AMP 경로 포함)를 기사별로 �
 - 유입 채널 수집(`--report channel`, 2026-11-12): `data/ga4/raw/channel/{YYYY-MM-DD}.json.gz`. `rows`는 `[pagePath, sessionDefaultChannelGroup, country, languageCode, PV, 활성 사용자, 참여 시간]`. 분석 구간(2025-07-01)부터 받는다. 일 약 1.6MB, 499일 오류 없음. 락 `.lock-channel`, 로그 `data/ga4/collect_channel.log`
 - 채널 자동 실행(2026-11-13 등록, 사용자 승인): cron 매일 08:58·13:58·18:58·23:58 + 부팅 7분 뒤. 등록 전 crontab 백업 `data/ga4/crontab-before-channel.txt`. 첫 정시 실행 확인(2026-11-13 13:55·13:58, 최근 4일 수집, 오류 없음)
 
+- 고유 사용자 수집(`--report users`, 2026-11-16, N3 M1): `data/ga4/raw/users/{YYYY-MM-DD}.json.gz`. `rows`는 `[country, languageCode, PV, 활성 사용자, 참여 시간]`. 경로 차원이 없어 활성 사용자가 하루 고유 값이다(일 합계로는 경로별 합보다 작다. 행 단위로는 드물게 클 수 있다). 2026-11-14 대조: PV 327,498·참여 3,520,324초가 `segment`와 정확히 일치하고, 활성 사용자는 고유 134,114명 대 경로별 합 170,026명. 분석 구간(2025-07-01)부터 받는다. 자동 실행: cron 매일 08:59·13:59·18:59·23:59 + 부팅 8분 뒤, 등록 전 crontab 백업 `data/ga4/crontab-before-users.txt`. 로그 `data/ga4/collect_users.log`
+
 ### 세그먼트 보고서와 `(other)` (2026-11-12)
 
 - 세그먼트 629일은 `(other)` 손실이 전부 0이다. `pagepath` 손실 구간(201일)에서도 같다
@@ -50,4 +52,4 @@ r5의 결과 변수(GA4 `screenPageViews`, AMP 경로 포함)를 기사별로 �
 
 - 경로 단위라 슬러그 변경·AMP 100자 절단은 `slug_match.py`로 원장에 맞춰야 한다
 - 72시간 PV는 발행일부터 3개 일별 파일을 더해 계산한다. 시간 단위(`dateHour`) 값은 받지 않았다
-- `activeUsers`는 경로별 일 사용자라 며칠을 더하면 중복이 생긴다. PV만 합산한다
+- `pagepath`·`segment`·`channel`의 `activeUsers`는 경로별 일 사용자라 합치면 중복이 생긴다. PV만 합산한다. 사용자 기준 값이 필요하면 `users` 보고서를 쓴다(그 합도 사용자·일 단위)
