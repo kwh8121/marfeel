@@ -5,6 +5,8 @@
   data/ga4/raw/pagepath/{YYYY-MM-DD}.json.gz
 저장 항목에 (other) 행 손실 여부(dataLossFromOtherRow)와 (other) PV 비중을 함께 남긴다.
 받은 날은 건너뛴다. 단 최근 REFRESH_DAYS일은 GA4 후처리로 값이 바뀔 수 있어 매번 다시 받아 덮어쓴다.
+또 받은 시각(파일 수정 시각)이 그날로부터 REFRESH_DAYS일 이내인 파일은 덜 처리된 값일 수 있어, PC가 며칠 꺼져
+있다 켜진 뒤에도 확정으로 보지 않고 다시 받는다.
 인증은 searchconsole_check.py의 토큰(analytics.readonly)을 쓴다.
 
 기본 범위: 2025-02-21(원장 시작) ~ 오늘 - 1일. --start·--end로 조정한다.
@@ -88,6 +90,12 @@ def fetch_day(token, day, report="pagepath"):
             return rows, meta, quota
 
 
+def settled(path, day):
+    """파일이 후처리가 끝난 뒤(그날 + REFRESH_DAYS일 초과)에 받은 것인가."""
+    fetched = datetime.fromtimestamp(path.stat().st_mtime).date()
+    return (fetched - day).days > REFRESH_DAYS
+
+
 def save(path, payload):
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".tmp")
@@ -124,7 +132,7 @@ def main():
     day = date.fromisoformat(args.start)
     while day <= end:
         path = out / "raw" / args.report / f"{day.isoformat()}.json.gz"
-        if path.exists() and (today - day).days > REFRESH_DAYS:
+        if path.exists() and (today - day).days > REFRESH_DAYS and settled(path, day):
             skipped += 1
             day += timedelta(days=1)
             continue
