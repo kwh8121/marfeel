@@ -12,8 +12,8 @@ ROOT = Path(__file__).resolve().parent.parent
 A = ROOT / "data" / "analysis"
 tier = {}
 for r in csv.DictReader(open(A / "n3_country_lang.csv", encoding="utf-8")):
-    if r["eng_per_user"] and int(r["pv"]) >= 10000 and r["country"] != "South Korea":
-        e = float(r["eng_per_user"]); tier[(r["country"], r["language"])] = "B_strong" if e < 7 else ("B_border" if e < 15 else "B_normal")
+    if int(r["active_users_sum"]) and int(r["pv"]) >= 10000 and r["country"] != "South Korea":
+        e = int(r["engagement_sec"]) / int(r["active_users_sum"]); tier[(r["country"], r["language"])] = "B_strong" if e < 7 else ("B_border" if e < 15 else "B_normal")
 month = defaultdict(int); day = defaultdict(int)
 for f in sorted(glob.glob(str(ROOT / "data/ga4/raw/channel/*.json.gz"))):
     d = json.load(gzip.open(f, "rt", encoding="utf-8")); ds = d["date"]

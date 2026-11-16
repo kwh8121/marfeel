@@ -16,6 +16,11 @@ ROOT = Path(__file__).resolve().parent.parent
 A = ROOT / "data" / "analysis"
 FILES = sorted(glob.glob(str(ROOT / "data/ga4/raw/channel/*.json.gz")))
 ART = re.compile(r"^/(?:amp/)?[^?]*?/(20\d{6})/[^/]+$")
+
+
+def akey(path):
+    """기사 키: AMP 접두(/amp)를 떼고 앞 96자(AMP 경로는 100자에서 잘려 같은 기사가 둘로 갈라졌다)."""
+    return (path[4:] if path.startswith("/amp/") else path)[:96]
 tier = {(r["country"], r["language"]): r["tier"] for r in csv.DictReader(open(A / "n3_bot_tiers.csv", encoding="utf-8"))}
 CORE = {"Direct", "Unassigned"}
 daily = defaultdict(dict)  # (country, lang) -> {date: [pv, au, eng, core_pv]}
@@ -95,6 +100,8 @@ def corr(x, y):
 
 
 art = defaultdict(lambda: [0, 0, 0])
+PUB = {}
+LAST = date.fromisoformat(load(FILES[-1])["date"])
 for f in FILES:
     d = load(f); day = date.fromisoformat(d["date"])
     for path, ch, ct, lg, pv, au, e in d["rows"]:
@@ -103,10 +110,11 @@ for f in FILES:
         try: pub = date(int(m[1][:4]), int(m[1][4:6]), int(m[1][6:]))
         except ValueError: continue
         if date(2025, 7, 1) <= pub <= day <= pub + timedelta(days=2):
-            a = art[path]; a[0] += pv
+            k = akey(path); PUB[k] = pub
+            a = art[k]; a[0] += pv
             if ((ct, lg), day) in base: a[1] += pv
             if ((ct, lg), day) in loose: a[2] += pv
-paths = [p for p, a in art.items() if a[0] >= 20]
+paths = [p for p, a in art.items() if a[0] >= 20 and PUB[p] + timedelta(days=2) <= LAST]
 tt = [art[p][0] for p in paths]; rt = ranks(tt)
 top = lambda xs: set(sorted(range(len(xs)), key=lambda i: -xs[i])[:100])
 print(f"기사 {len(paths)}건")

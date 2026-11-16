@@ -14,10 +14,15 @@ ROOT = Path(__file__).resolve().parent.parent
 A = ROOT / "data" / "analysis"
 START = date(2025, 7, 1)
 ART = re.compile(r"^/(?:amp/)?[^?]*?/(20\d{6})/[^/]+$")
+
+
+def akey(path):
+    """기사 키: AMP 접두(/amp)를 떼고 앞 96자(AMP 경로는 100자에서 잘려 같은 기사가 둘로 갈라졌다)."""
+    return (path[4:] if path.startswith("/amp/") else path)[:96]
 tier = {}
 for r in csv.DictReader(open(A / "n3_country_lang.csv", encoding="utf-8")):
-    if r["eng_per_user"] and int(r["pv"]) >= 10000 and r["country"] != "South Korea":
-        e = float(r["eng_per_user"])
+    if int(r["active_users_sum"]) and int(r["pv"]) >= 10000 and r["country"] != "South Korea":
+        e = int(r["engagement_sec"]) / int(r["active_users_sum"])  # 반올림 전 값
         tier[(r["country"], r["language"])] = "strong" if e < 7 else ("border" if e < 15 else "normal")
 print("분류 행:", {t: sum(1 for v in tier.values() if v == t) for t in ("strong", "border", "normal")})
 
@@ -39,9 +44,11 @@ def corr(x, y):
 
 
 daily = {}
+PUB = {}
+LAST = None
 art = defaultdict(lambda: [0, 0, 0])  # path -> [전체, strong, border]
 for f in sorted(glob.glob(str(ROOT / "data/ga4/raw/segment/*.json.gz"))):
-    d = json.load(gzip.open(f, "rt", encoding="utf-8")); day = date.fromisoformat(d["date"])
+    d = json.load(gzip.open(f, "rt", encoding="utf-8")); day = date.fromisoformat(d["date"]); LAST = day
     if day < START: continue
     t = {"strong": 0, "border": 0, "normal": 0}
     for path, ct, lg, pv, au, e in d["rows"]:
@@ -51,7 +58,7 @@ for f in sorted(glob.glob(str(ROOT / "data/ga4/raw/segment/*.json.gz"))):
             try: pub = date(int(m[1][:4]), int(m[1][4:6]), int(m[1][6:]))
             except ValueError: continue
             if START <= pub <= day <= pub + timedelta(days=2):
-                a = art[path]; a[0] += pv
+                a = art[akey(path)]; a[0] += pv; PUB[akey(path)] = pub
                 if k == "strong": a[1] += pv
                 elif k == "border": a[2] += pv
     daily[day] = t
@@ -65,7 +72,7 @@ for k in ("strong", "border"):
     wk = lambda xs, w: sum(x for x, d in zip(xs, days) if (d.weekday() >= 5) == w) / max(1, sum(1 for d in days if (d.weekday() >= 5) == w))
     jumps = sorted(((abs(s[i] - s[i - 1]) / max(s[i - 1], 1), days[i]) for i in range(1, len(s))), reverse=True)[:3]
     print(f"[{k}] 일별 PV 상관(normal과) {corr(s, n):.2f} | 비중 {min(share):.1%}~{max(share):.1%} | 주말/평일 PV 비 {wk(s, True) / wk(s, False):.2f} (normal {wk(n, True) / wk(n, False):.2f}) | 전일 대비 급변 상위 {[(str(d), round(j, 2)) for j, d in jumps]}")
-paths = [p for p, a in art.items() if a[0] >= 20]
+paths = [p for p, a in art.items() if a[0] >= 20 and PUB[p] + timedelta(days=2) <= LAST]
 tot = [art[p][0] for p in paths]
 ex1 = [art[p][0] - art[p][1] for p in paths]
 ex2 = [art[p][0] - art[p][1] - art[p][2] for p in paths]
