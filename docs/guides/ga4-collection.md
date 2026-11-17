@@ -42,6 +42,7 @@ r5의 결과 변수(GA4 `screenPageViews`, AMP 경로 포함)를 기사별로 �
 
 - 고유 사용자 수집(`--report users`, 2026-11-16, N3 M1): `data/ga4/raw/users/{YYYY-MM-DD}.json.gz`. `rows`는 `[country, languageCode, PV, 활성 사용자, 참여 시간]`. 경로 차원이 없어 활성 사용자가 하루 고유 값이다(일 합계로는 경로별 합보다 작다. 행 단위로는 드물게 클 수 있다). 2026-11-14 대조: PV 327,498·참여 3,520,324초가 `segment`와 정확히 일치하고, 활성 사용자는 고유 134,114명 대 경로별 합 170,026명. 분석 구간(2025-07-01)부터 받는다. 자동 실행: cron 매일 08:59·13:59·18:59·23:59 + 부팅 8분 뒤, 등록 전 crontab 백업 `data/ga4/crontab-before-users.txt`. 로그 `data/ga4/collect_users.log`
 
+- 실행 이력(2026-11-16): `ga4_collect.py`가 실행마다 `data/ga4/runs.log`에 `시각(KST)·보고서·start/end·exit=코드`를 남긴다. PC 절전·종료로 빠진 정시 실행(08·13·18·23시대)을 이 파일로 확인하고, `collect_health.py`가 보고서별 마지막 종료 시각을 출력한다. 수집 데이터는 실행을 놓쳐도 다음 실행이 빠진 날과 최근 4일을 다시 받아 손실이 없다. `users` 정상 실행 약 16초(최근 4일 재수집)
 ### 세그먼트 보고서와 `(other)` (2026-11-12)
 
 - 세그먼트 629일은 `(other)` 손실이 전부 0이다. `pagepath` 손실 구간(201일)에서도 같다

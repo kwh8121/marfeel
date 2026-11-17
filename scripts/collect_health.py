@@ -54,6 +54,14 @@ def main():
                 bad += 1
         else:
             print(f"GA4 {rep:8s} : 파일 없음"); bad += 1
+    runs = GA4.parent / "runs.log"  # ga4_collect.py가 남기는 실행 이력(PC 절전·종료로 빠진 실행 확인용, 참고 출력만 한다)
+    if runs.exists():
+        last = {}
+        for line in runs.read_text(encoding="utf-8").splitlines():
+            p = line.split("\t")
+            if len(p) >= 3 and p[2] == "end": last[p[1]] = (p[0], p[3] if len(p) > 3 else "")
+        for rep, (ts, code) in sorted(last.items()):
+            print(f"GA4 {rep:8s} 마지막 실행 종료 {ts} {code}")
     con = sqlite3.connect(f"file:{DB}?mode=ro", uri=True, timeout=30)
     ended, = con.execute("SELECT MAX(ended_at) FROM runs WHERE mode IN ('incremental','full') AND failed_pages=0").fetchone()
     pub, = con.execute("SELECT MAX(pub_dt) FROM articles").fetchone()

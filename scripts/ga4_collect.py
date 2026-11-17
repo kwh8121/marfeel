@@ -164,5 +164,27 @@ def main():
     print(f"완료. 받음 {done}, 건너뜀 {skipped}")
 
 
+def run_log(report, event, code=None):
+    """실행 이력을 data/ga4/runs.log에 한 줄씩 남긴다(PC 절전·종료로 빠진 실행 확인용). 실패해도 수집은 막지 않는다."""
+    try:
+        line = f"{datetime.now(KST).isoformat(timespec='seconds')}\t{report}\t{event}" + ("" if code is None else f"\texit={code}")
+        with open(DEFAULT_OUT / "runs.log", "a", encoding="utf-8") as f:
+            f.write(line + "\n")
+    except OSError:
+        pass
+
+
 if __name__ == "__main__":
-    main()
+    report = sys.argv[sys.argv.index("--report") + 1] if "--report" in sys.argv[:-1] else "pagepath"
+    run_log(report, "start")
+    code = 0
+    try:
+        main()
+    except SystemExit as e:
+        code = e.code if isinstance(e.code, int) else (0 if e.code is None else 1)
+        raise
+    except BaseException:
+        code = 1
+        raise
+    finally:
+        run_log(report, "end", code)
